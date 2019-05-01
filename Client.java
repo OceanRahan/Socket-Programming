@@ -1,8 +1,6 @@
 package client;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -25,8 +23,6 @@ public class Client {
     private static PrintWriter pr = null;
     private static int ID;
     static long FileSize;
-    private static DataOutputStream out;
-    private static DataInputStream in;
 
     /**
      * @param args the command line arguments
@@ -36,6 +32,8 @@ public class Client {
 
         Scanner input = new Scanner(System.in);
         String send = null;
+        String i;
+        String Id;
         String line;
         String FileName;
         FileInputStream IS;
@@ -44,10 +42,7 @@ public class Client {
         FileOutputStream fos;
         String ht = "01111110";
         String payload;
-        String frame = "";
-        byte num = 1;
-        byte ack_no = 0;
-        String stuffed;
+
         try {
             socket = new Socket("localhost", 1558);
             br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -92,8 +87,7 @@ public class Client {
                     System.out.println("Client wants to exit the connection. Exiting......");
                     break;
                 } else if (send.equalsIgnoreCase("send")) {
-
-                   
+                    
                     File f = new File("light.jpg");
                     FileName = f.getName();
                     pr.println(FileName);
@@ -101,88 +95,51 @@ public class Client {
                     long FileSize = f.length();
                     pr.println(FileSize);
                     pr.flush();
-
                   
-                    int cc = 0;
-                    
-                        IS = new FileInputStream(f);
-                        OS = socket.getOutputStream();
-                        byte[] buffer = new byte[1];
-                        int chunk = 1;
-                        int count = 0;
-                        byte[] arr = new byte[20];
-                        while (count != FileSize) {
-                            if (FileSize - count >= chunk) {
-                                IS.read(buffer, 0, chunk);
-                                count += chunk;
-                                String seq = Integer.toBinaryString(num & 255 | 256).substring(1);
-                                String ack = Integer.toBinaryString(ack_no & 255 | 256).substring(1);
-                                payload = Integer.toBinaryString(buffer[0] & 255 | 256).substring(1);
-                                stuffed = bitStuff(payload);
-                                int sum = 0;
-                                for (int i = 0; i < 8; i++) {
-                                    if (payload.charAt(i) == '1') {
-                                        sum++;
-                                    }
-                                }
-                                String c = Integer.toBinaryString((byte) sum & 255 | 256).substring(1);
-                                frame = "01111110" + "00000001" + seq + ack + stuffed + c + "01111110";
-                                int len = frame.length();
-                               // pr.println(len);
-                              //  pr.flush();
-                                byte[] abc = new byte[(len + Byte.SIZE - 1) / Byte.SIZE];
-                                char ch;
-                                for (int i = 0; i < len; i++) {
-                                    if ((ch = frame.charAt(i)) == '1') {
-                                        abc[i / Byte.SIZE] = (byte) (abc[i / Byte.SIZE] | (0x80 >>> (i % Byte.SIZE)));
-                                    } else if (ch != '0') {
-                                        throw new IllegalArgumentException();
-                                    }
-                                }
-                                OS.write(abc);
-                                System.out.println("Frame sent: " + frame);
-                               // pr.println("");
-                                
-                            } else {
-                                chunk = (int) (FileSize - count);
-                                IS.read(buffer, 0, chunk);
-                                String seq = Integer.toBinaryString(num & 255 | 256).substring(1);
-                                String ack = Integer.toBinaryString(ack_no & 255 | 256).substring(1);
-                                payload = Integer.toBinaryString(buffer[0] & 255 | 256).substring(1);
-                                stuffed = bitStuff(payload);
-                                int sum = 0;
-                                for (int i = 0; i < 8; i++) {
-                                    if (payload.charAt(i) == '1') {
-                                        sum++;
-                                    }
-                                }
-                                String c = Integer.toBinaryString((byte) sum & 255 | 256).substring(1);
-                                frame = "01111110" + "00000001" + seq + ack + stuffed + c + "01111110";
-                                int len = frame.length();
-                                byte[] abc = new byte[(len + Byte.SIZE - 1) / Byte.SIZE];
-                                char ch;
-                                for (int i = 0; i < len; i++) {
-                                    if ((ch = frame.charAt(i)) == '1') {
-                                        abc[i / Byte.SIZE] = (byte) (abc[i / Byte.SIZE] | (0x80 >>> (i % Byte.SIZE)));
-                                    } else if (ch != '0') {
-                                        throw new IllegalArgumentException();
-                                    }
-                                }
-                                OS.write(abc);
-                                System.out.println("Frame sent: " + frame);
-                                count = (int) FileSize;
-                            }
-                        }
-                        OS.flush();
-                        //System.out.println("Frame Up");
+                    line = br.readLine();
+                    System.out.println(line);
+                    if (line.equalsIgnoreCase("Not")) {
+                        System.err.println("Buffer Overflow");
+                        continue;
+                    }
 
-                    
+                    System.out.println("I am entering into loop");
+                    IS = new FileInputStream(f);
+                    OS = socket.getOutputStream();
+                    byte[] buffer = new byte[1];
+                    int chunk = 1;
+                    int count = 0;
+
+                    while (count != FileSize) {
+                        if (FileSize - count >= chunk) {
+                            IS.read(buffer, 0, chunk);
+                            count += chunk;
+                            payload = buffer.toString();
+                            System.out.println(payload);
+                            /*    try {
+                                    pr.print(payload);
+                                    pr.flush();
+
+                                } catch (Exception ex) {
+                                    System.err.println("Could not load payload");
+                                }
+                             */
+                            OS.write(buffer, 0, chunk);
+                        } else {
+                            chunk = (int) (FileSize - count);
+                            IS.read(buffer, 0, chunk);
+                            OS.write(buffer, 0, chunk);
+                            count = (int) FileSize;
+                        }
+                    }
+                    OS.flush();
+                    System.out.println("File Uploaded");
+
                 } else if (send.equalsIgnoreCase("Receive")) {
                     line = br.readLine();
 
                     try {
                         is = socket.getInputStream();
-
                         fos = new FileOutputStream("Copy.jpg");
 
                         byte[] buffer = new byte[1024];
@@ -206,24 +163,8 @@ public class Client {
             }
         }
     }
-
-    public static String bitStuff(String s) {
-        int count = 0;
-        String res = "";
-        for (int i = 0; i < 8; i++) {
-            if (s.charAt(i) == '1') {
-                count++;
-                res += s.charAt(i);
-            } else {
-                count = 0;
-                res += s.charAt(i);
-
-            }
-            if (count == 5) {
-                res += '0';
-                count = 0;
-            }
-        }
-        return res;
-    }
 }
+
+                                
+                              
+                       
